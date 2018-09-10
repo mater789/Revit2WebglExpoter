@@ -13,8 +13,9 @@ namespace Revit2WebGlExporter
         ExternalEvent ExportEvent;
         // 任务定时器
         static private System.Timers.Timer _taskTimer = null;
-        static private readonly int _takeTaskIntervalTime = 2000; //ms
+        static private readonly int _takeTaskIntervalTime = 3000; //ms
         static private readonly string _taskInfoFileName = "task.info";
+        static private readonly int _maxTryRaiseEventTime = 10; //ms
 
         public ExportEventForm(ExternalEvent _event)
         {
@@ -41,24 +42,39 @@ namespace Revit2WebGlExporter
                 if (File.Exists(taskFile))
                 {
                     string taskInfo = File.ReadAllText(taskFile);
+
+                    Log.WriteLog("------------------------------------------------------------------------------------");
                     Log.WriteLog("取到任务 : " + taskInfo);
 
-                    File.Delete(taskFile);  //  防止重复转同一条任务
                     CommonSettings settings = CommonSettings.DeserializeWithJson(taskInfo);
                     if (settings == null)
-                    {
-                        Log.WriteLog("解析任务信息失败");
                         return;
-                    }
                     ExportEventHandler.Settings = settings;
-                    while (ExportEvent.IsPending)
-                        Thread.Sleep(100);
-                    ExportEvent.Raise();
+                    
+                    int count = 0;
+                    while (count < _maxTryRaiseEventTime)
+                    {
+                        ExternalEventRequest request =  ExportEvent.Raise();
+                        if (request != ExternalEventRequest.Accepted)
+                        {
+                            count++;
+                            Log.WriteLog("ExportEvent.Raise返回" + request.ToString());
+                            Thread.Sleep(1000);
+                        }
+                        else
+                        {
+                            File.Delete(taskFile);  //  防止重复转同一条任务
+                            break;
+                        }
+                    }
+
+                    if (count == _maxTryRaiseEventTime)
+                        WriteResultFile("-100");
                 }
             }
             catch (Exception ex)
             {
-                Log.WriteLog("异常 : " + ex.Message + "\r\n" + ex.StackTrace);
+                Log.WriteLog("ExportEventForm异常 : " + ex.GetType().ToString() + "," + ex.Message + "\r\n" + ex.StackTrace);
             }
             finally
             {
@@ -66,6 +82,31 @@ namespace Revit2WebGlExporter
             }
         }
 
+        private bool WriteResultFile(string context)
+        {
+            string resultFilePath = Path.Combine(ExportEventHandler.Settings.OutputFolder, "result.res");
+            FileStream fs = null;
+            try
+            {
+                fs = new FileStream(resultFilePath, FileMode.Create, FileAccess.ReadWrite);
+                byte[] buffer = System.Text.Encoding.Default.GetBytes(context);
+                fs.Write(buffer, 0, buffer.Length);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog("WriteResultFile异常 : " + ex.GetType().ToString() + "," + ex.Message + "\r\n" + ex.StackTrace);
+                return false;
+            }
+            finally
+            {
+                if (fs != null)
+                {
+                    fs.Flush();
+                    fs.Close();
+                }
+            }
+        }
 
         ///////////////////////////////////////////////////////////////////////////////////////
         //发送消息的机制由于转换服务是在admin用户下运行，因此Revit也必须在admin用户下启动    //

@@ -62,18 +62,13 @@ namespace Revit2WebGlExporter
                     FailureResolutionType type = FailureResolutionType.Invalid;
                     if (failure.HasResolutions() && GetFailureResolutionType(failuresAccessor, failure, ref type))
                     {
-                        Log.WriteLog("尝试解决Revit错误 : " + failure.GetDescriptionText());
-                        Log.WriteLog("方法 : " + type.ToString());
                         failure.SetCurrentResolutionType(type);
                         failuresAccessor.ResolveFailure(failure);
                         e.SetProcessingResult(FailureProcessingResult.ProceedWithCommit);
                     }
                 }
                 if (failure.GetSeverity() == FailureSeverity.Warning)
-                {
-                    Log.WriteLog("删除Revit警告 : " + failure.GetDescriptionText());
                     failuresAccessor.DeleteWarning(failure);
-                }
             }
         }
 
@@ -151,8 +146,6 @@ namespace Revit2WebGlExporter
 
         static private void OnDialogBoxShowingEvent(object sender, DialogBoxShowingEventArgs e)
         {
-            Log.WriteLog("自动关闭Revit弹框 : " + e.DialogId);
-
             if (e.OverrideResult((int)System.Windows.Forms.DialogResult.OK))
                 return;
             else if (e.OverrideResult((int)System.Windows.Forms.DialogResult.Cancel))
@@ -227,7 +220,6 @@ namespace Revit2WebGlExporter
                     {
                         isKilled = true;
                         PostMessage(hwCurr, WM_CLOSE, 0, 0);
-                        Log.WriteLog("强制关闭弹框 : " + text);
                         break;
                     }
                 }
@@ -241,7 +233,6 @@ namespace Revit2WebGlExporter
                     if (p.MainWindowHandle != IntPtr.Zero && p.MainWindowTitle == text)
                     {
                         p.Kill();
-                        Log.WriteLog("强制关闭弹框 : " + text);
                         break;
                     }
                 }

@@ -10,24 +10,22 @@ namespace Revit2WebGlExporter
 
         public Autodesk.Revit.UI.Result OnStartup(Autodesk.Revit.UI.UIControlledApplication application)
         {
+            Log.WriteLog("Revit启动");
+
             ExportEventHandler handle = new ExportEventHandler();
             ExternalEvent extEvent = ExternalEvent.Create(handle);
             exportEventForm = new ExportEventForm(extEvent);
             exportEventForm.Show();
             exportEventForm.Visible = false;
 
-            Log.Initial();
-            Log.WriteLog("-------------------Revit2WebGlExporter加载成功-------------------");
-
             return Result.Succeeded;
         }
 
         public Autodesk.Revit.UI.Result OnShutdown(Autodesk.Revit.UI.UIControlledApplication application)
         {
+            Log.WriteLog("Revit关闭");
+
             exportEventForm.Close();
-
-            Log.WriteLog("----------------------------Revit关闭----------------------------");
-
             return Result.Succeeded;
         }
     }

@@ -15,11 +15,11 @@ namespace Revit2WebGlExporter
 
         public void Execute(Autodesk.Revit.UI.UIApplication app)
         {
-            Log.WriteLog("*************************开始转换*************************");
+            Log.WriteLog("转换开始");
 
             int resultCode = 0;
             string errorDesc = string.Empty;
-            Document activeDoc = null;
+            UIDocument uiDoc = null;
 
             try
             {
@@ -34,15 +34,16 @@ namespace Revit2WebGlExporter
                     return;
                 }
                 
-                UIDocument uiDoc = app.OpenAndActivateDocument(Settings.InputFilePath);
+                uiDoc = app.OpenAndActivateDocument(Settings.InputFilePath);
                 if (uiDoc == null)
                 {
                     resultCode = -2;
                     errorDesc = "打开文件失败，UIDocument为空";
                     return;
                 }
+                Log.WriteLog("打开模型成功");
 
-                activeDoc = uiDoc.Document;
+                Document activeDoc = uiDoc.Document;
                 if (activeDoc == null)
                 {
                     resultCode = -3;
@@ -56,7 +57,7 @@ namespace Revit2WebGlExporter
                     errorDesc = "打开3D视图失败";
                     return;
                 }
-                Log.WriteLog("当前视图 : " + uiDoc.ActiveView.Name);
+                Log.WriteLog("切换试图成功，当前视图 : " + uiDoc.ActiveView.Name);
 
                 DocumentExporter modelExporter = new Exporter.DocumentExporter(app.Application);
                 DocumentExporter.ErrorType error = modelExporter.ExportDocumentWithAcvtiveView(activeDoc);
@@ -64,9 +65,17 @@ namespace Revit2WebGlExporter
                 {
                     resultCode = -5;
                     if (error == DocumentExporter.ErrorType.NoElement)
+                    {
                         errorDesc = "当前视图无几何信息";
+                        string errorFilePath = Path.Combine(Settings.OutputFolder, "error.js");
+                        File.WriteAllText(errorFilePath, "{\"ErrorType\":\"-7\"}");
+                    }
                     else if (error == DocumentExporter.ErrorType.UnSupportedGeometry)
+                    {
                         errorDesc = "写WebGl文件失败";
+                        string errorFilePath = Path.Combine(Settings.OutputFolder, "error.js");
+                        File.WriteAllText(errorFilePath, "{\"ErrorType\":\"-8\"}");
+                    }
                     else
                         errorDesc = "其他";
 
@@ -76,33 +85,24 @@ namespace Revit2WebGlExporter
             catch (Exception ex)
             {
                 resultCode = -6;
-                errorDesc = ex.Message + "\r\n" + ex.StackTrace;
+                errorDesc = ex.GetType().ToString() + "," + ex.Message + "\r\n" + ex.StackTrace;
+
+                Log.WriteLog("转换异常 : " + errorDesc);
             }
             finally
             {
-                Log.WriteLog("转换结果 : " + resultCode.ToString());
-                if (!string.IsNullOrEmpty(errorDesc))
-                    Log.WriteLog(errorDesc);
+                Log.WriteLog("转换结束 : " + resultCode.ToString());
                 
-                int count = 0;
-                while (count < 10)
-                {
-                    count++;
-                    Log.WriteLog("尝试写入result文件 ： 第" + count.ToString() + "次");
+                if (!WriteResultFile(resultCode.ToString() + "\r\n" + errorDesc))
+                    Log.WriteLog("写result.res失败");
 
-                    if (!WriteResultFile(resultCode.ToString() + "\r\n" + errorDesc))
-                        Thread.Sleep(1000);
-                    else
-                        break;
-                }
-
-                if (activeDoc != null)
-                    activeDoc.Close();
+                if (uiDoc != null)
+                    uiDoc.SaveAndClose();
 
                 _dialogMonitor.Pause();
                 Settings = null;
 
-                Log.WriteLog("*************************转换结束*************************\r\n");
+                Log.WriteLog("------------------------------------------------------------------------------------");
             }
         }
 
@@ -120,12 +120,11 @@ namespace Revit2WebGlExporter
                 fs = new FileStream(resultFilePath, FileMode.Create, FileAccess.ReadWrite);
                 byte[] buffer = Encoding.Default.GetBytes(context);
                 fs.Write(buffer, 0, buffer.Length);
-                Log.WriteLog("写入result文件成功");
                 return true;
             }
             catch(Exception ex)
             {
-                Log.WriteLog("写入result文件时发生异常 : " + ex.Message + "\r\n" + ex.StackTrace);
+                Log.WriteLog("WriteResultFile异常 : " + ex.GetType().ToString() + "," + ex.Message + "\r\n" + ex.StackTrace);
                 return false;
             }
             finally
