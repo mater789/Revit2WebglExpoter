@@ -15,6 +15,9 @@ namespace Revit2WebGlExporter.Exporter
 
         static public bool ExportElement(Element element, ref Va3cContainer.Va3cObject categoryObject)
         {
+            if (!IsValidElement(element))
+                return false;
+
             Va3cContainer.Va3cObject elementObject = new Va3cContainer.Va3cObject();
             elementObject.uuid = StringConverter.NewGuid();
             elementObject.type = element.GetType().Name;
@@ -158,6 +161,17 @@ namespace Revit2WebGlExporter.Exporter
                     return false;
                 destObject.children.Add(destChild);
             }
+
+            return true;
+        }
+
+        static private bool IsValidElement(Element element)
+        {
+            if (element == null)
+                return false;
+
+            if (!ExportEventHandler.Settings.ExportCADLink && element is ImportInstance)
+                return false;
 
             return true;
         }

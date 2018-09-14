@@ -57,6 +57,13 @@ namespace Revit2WebGlExporter
         }
         private bool _UseRenderMaterial = true;
 
+        public bool ExportCADLink
+        {
+            get { return _ExportCADLink; }
+            set { _ExportCADLink = value; }
+        }
+        private bool _ExportCADLink = true;
+
         /// <summary>
         /// 将对象序列化为二进制数据 
         /// </summary>
